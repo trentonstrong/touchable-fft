@@ -1,0 +1,48 @@
+<!DOCTYPE HTML>
+<html>
+<body>
+
+<div id=""
+
+</body>
+</html>
+<script src="http://github.com/DmitryBaranovskiy/raphael/raw/master/raphael-min.js"></script>
+<script src="http://github.com/DmitryBaranovskiy/g.raphael/blob/master/min/g.raphael-min.js?raw=true"></script>
+<script src="http://github.com/DmitryBaranovskiy/g.raphael/blob/master/min/g.line-min.js?raw=true"></script>
+<script src="http://documentcloud.github.com/underscore/underscore-min.js"></script>
+<script src="fft.js"></script>
+<script>
+
+    Math.gaussian = function(x) {
+        return 4.0 * Math.exp( -1.0 * Math.pow(x , 2) / 1024.0 );
+    };
+
+
+    Math.noise = function (s) {
+        return function (x) {
+            return x + s * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+        }
+    }
+
+    var N = 4096;
+    var dx = 0.1;
+    var HALF_N = N / 2.0;
+    var xArray = _.map(_.range(N), function (xn) { return dx*(xn - HALF_N) });
+
+    var zeroFunction = function () { return 0; }
+
+    var Re_f_Array = _.map(xArray, _.compose(Math.noise(2.0), Math.cos));
+    var Im_f_Array = _.map(xArray, zeroFunction);
+    var leftCtx = Raphael(0, 0, 640, 480);
+    leftCtx.linechart(0, 0, 640, 480, xArray, [Re_f_Array, Im_f_Array]);
+    fft(1, N, Re_f_Array, Im_f_Array);
+
+    var spectra = _.first(_.zip(Re_f_Array, Im_f_Array), HALF_N);
+    var abs = function (c) { 
+        return Math.sqrt(Math.pow(c[0], 2.0) + Math.pow(c[1], 2.0));
+    }
+    var aArray = _.map(spectra, abs);
+    var rightCtx = Raphael(640, 0, 640, 480);
+    rightCtx.linechart(0, 0, 640, 480, _.range(HALF_N), aArray);
+
+</script>
