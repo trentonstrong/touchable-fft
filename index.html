@@ -1,48 +1,43 @@
 <!DOCTYPE HTML>
 <html>
+<head>
+    <link rel="stylesheet" type="text/css" href="css/aristo.css" />
+    <link rel="stylesheet" type="text/css" href="css/styles.css" />
+</head>
 <body>
+    <div id="app" class="container">
 
-<div id=""
-
+    </div>
 </body>
 </html>
-<script src="http://github.com/DmitryBaranovskiy/raphael/raw/master/raphael-min.js"></script>
-<script src="http://github.com/DmitryBaranovskiy/g.raphael/blob/master/min/g.raphael-min.js?raw=true"></script>
-<script src="http://github.com/DmitryBaranovskiy/g.raphael/blob/master/min/g.line-min.js?raw=true"></script>
-<script src="http://documentcloud.github.com/underscore/underscore-min.js"></script>
-<script src="fft.js"></script>
+<script id="signal_view_template" type="text/x-underscore-template">
+    <label for="frequency_<%= id %>">Frequency</label>
+    <input type="text" name="frequency" id="frequency_<%= id %>" value="<%= signal.get('frequency') %>" />
+    <div class="frequency-slider"></div>
+    <br />
+    <label for="amplitude_<%= id %>">Amplitude</label>
+    <input type="text" name="amplitude" id="amplitude_<%= id %>" value="<%= signal.get('amplitude') %>" />
+    <div class="amplitude-slider"></div>
+    <br />
+    <label>Waveform:</label>
+    <% _.each(waveforms, function(waveformId, waveformName) { %>
+        <label for="waveform_<%= id %>_<%= waveformId %>"><%= waveformName %></label>
+        <input type="radio"
+            id="waveform_<%= id %>_<%= waveformId %>"
+            name="waveform_<%= id %>"
+            value="<%= waveformId %>"
+            <%= signal.get('waveForm') === waveformId ? 'checked="checked"' : '' %> />
+    <% }); %>
+</script>
+<script src="js/jquery-1.7.1.min.js"></script>
+<script src="js/jquery-ui-1.8.18.custom.min.js"></script>
+<script src="js/underscore.js"></script>
+<script src="js/backbone.js"></script>
+<script src="js/d3.js"></script>
+<script src="js/dsp.js"></script>
+<script src="js/script.js"></script>
 <script>
-
-    Math.gaussian = function(x) {
-        return 4.0 * Math.exp( -1.0 * Math.pow(x , 2) / 1024.0 );
-    };
-
-
-    Math.noise = function (s) {
-        return function (x) {
-            return x + s * Math.random() * (Math.random() > 0.5 ? -1 : 1);
-        }
-    }
-
-    var N = 4096;
-    var dx = 0.1;
-    var HALF_N = N / 2.0;
-    var xArray = _.map(_.range(N), function (xn) { return dx*(xn - HALF_N) });
-
-    var zeroFunction = function () { return 0; }
-
-    var Re_f_Array = _.map(xArray, _.compose(Math.noise(2.0), Math.cos));
-    var Im_f_Array = _.map(xArray, zeroFunction);
-    var leftCtx = Raphael(0, 0, 640, 480);
-    leftCtx.linechart(0, 0, 640, 480, xArray, [Re_f_Array, Im_f_Array]);
-    fft(1, N, Re_f_Array, Im_f_Array);
-
-    var spectra = _.first(_.zip(Re_f_Array, Im_f_Array), HALF_N);
-    var abs = function (c) { 
-        return Math.sqrt(Math.pow(c[0], 2.0) + Math.pow(c[1], 2.0));
-    }
-    var aArray = _.map(spectra, abs);
-    var rightCtx = Raphael(640, 0, 640, 480);
-    rightCtx.linechart(0, 0, 640, 480, _.range(HALF_N), aArray);
-
+    var appView = new TFFT.ApplicationView({
+        el: $('#app')
+    });
 </script>
