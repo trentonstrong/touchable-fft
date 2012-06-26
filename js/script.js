@@ -7,7 +7,7 @@
  * @returns {Float} The Gaussian amplitude at point x
  * TODO:  Parameterize amplitude and spread
  */
-Math.gaussian = function(x) {
+ Math.gaussian = function(x) {
     return 4.0 * Math.exp( -1.0 * Math.pow(x , 2) / 1024.0 );
 };
 
@@ -22,7 +22,7 @@ Math.gaussian = function(x) {
  *
  * @returns {Function} A parameterized noise function
  */
-Math.noise = function (amplitude) {
+ Math.noise = function (amplitude) {
     var memo = {};
     return function (x) {
         if (x in memo) {
@@ -39,7 +39,7 @@ Math.noise = function (amplitude) {
  *
  * @returns {Float} Always returns 0.0
  */
-Math.zeroFunction = function () { return 0.0; };
+ Math.zeroFunction = function () { return 0.0; };
 
 /*
  * Logarithm in base 10
@@ -48,7 +48,7 @@ Math.zeroFunction = function () { return 0.0; };
  *
  * @returns {Float} The base 10 logarithm of x
  */
-Math.log10 = function (x) { return Math.log(x) / Math.log(10); };
+ Math.log10 = function (x) { return Math.log(x) / Math.log(10); };
 
 /*
  * Converts a value on a linear scale to a logarithmic Decibel scale
@@ -57,12 +57,18 @@ Math.log10 = function (x) { return Math.log(x) / Math.log(10); };
  *
  * @returns {Float} The standard decibel representation of the value
  */
-Math.toDecibels = function (x) { return 20.0 * Math.log10(x); };
+ Math.toDecibels = function (x) { return 20.0 * Math.log10(x); };
 
+ Math.randInt = function(max, min) {
+    if (min === undefined) {
+        min = 0;
+    }
+    return Math.floor( Math.random() * max  + min);
+}
 /*
  * Primary namespace
  */
-var TFFT = window.TFFT = TFFT || {};
+ var TFFT = window.TFFT = TFFT || {};
 
 /*
  * The buffer size determines the number of storage elements allocated for a discrete signal.
@@ -80,7 +86,7 @@ var TFFT = window.TFFT = TFFT || {};
  * at 44.1 KHz or store the same length signal at 88.2 Khz
  *
  */
-TFFT.BUFFER_SIZE = 2048;
+ TFFT.BUFFER_SIZE = 2048;
 
 /*
  * The sample rate specifies the rate at which "samples" -- discrete measurements of
@@ -89,7 +95,7 @@ TFFT.BUFFER_SIZE = 2048;
  * value of the original signal at evenly spaced intervals of ~22 μs.
  *
  */
-TFFT.SAMPLE_RATE = 44100;
+ TFFT.SAMPLE_RATE = 44100;
 
 /*
  * The bandwidth represents the size (in Hz) of the discrete frequency "buckets"
@@ -107,17 +113,17 @@ TFFT.SAMPLE_RATE = 44100;
  * A more detailed mathematical explanation requires a bit more knowledge of the continuous time
  * Fourier transform.  The so-called "Bandpass" theorem is a mathematical derivation of the following.
  */
-TFFT.BANDWIDTH = 2.0 / TFFT.BUFFER_SIZE * TFFT.SAMPLE_RATE / 2.0;
+ TFFT.BANDWIDTH = 2.0 / TFFT.BUFFER_SIZE * TFFT.SAMPLE_RATE / 2.0;
 
 /*
  * Returns the band frequency an index represents in the frequency domain buffer.
  */
-TFFT.getBandFrequency = function(index) {
+ TFFT.getBandFrequency = function(index) {
     return TFFT.BANDWIDTH * index + TFFT.BANDWIDTH / 2.0;
 };
 
 /*
- * The */
+* The */
 TFFT.SignalModel = Backbone.Model.extend({
     defaults: {
         waveForm: DSP.SINE,
@@ -132,6 +138,10 @@ TFFT.SignalModel = Backbone.Model.extend({
             this.get("amplitude"),
             TFFT.BUFFER_SIZE,
             TFFT.SAMPLE_RATE);
+    },
+
+    save: function() {
+        // NO-OP
     }
 });
 
@@ -155,10 +165,16 @@ TFFT.SignalCollection = Backbone.Collection.extend({
     }
 });
 
-TFFT.Signals = new TFFT.SignalCollection();
+TFFT.Signals = new TFFT.SignalCollection;
+
+// color temperature (blackbody: 1K -> 20K)
+TFFT.ColorScale = ['#ff3800', '#ff8912', '#ffb46b', '#ffd1a3', '#ffe4ce',
+    '#fff3ef', '#f5f3ff', '#e3e9ff', '#d6e1ff', '#ccdbff', '#c4d7ff', '#bfd3ff',
+    '#bad0ff', '#b6ceff', '#b3ccff', '#b0caff', '#aec8ff', '#acc7ff', '#aac6ff',
+    '#a8c5ff'];
 
 TFFT.SignalTransformGraph = Backbone.View.extend({
-    className: 'signal-transform-graph',
+    className: 'signal-transform-graph ui-widget-content',
 
     initialize: function(options) {
         this.width = options.width || 640;
@@ -171,9 +187,33 @@ TFFT.SignalTransformGraph = Backbone.View.extend({
         .attr("width", this.width)
         .attr("height", this.height);
 
+        var gradient = this.chart.append("svg:defs")
+        .append("svg:linearGradient")
+        .attr("id", "signalGradient")
+        .attr("x1", "0%")
+        .attr("y1", "0%")
+        .attr("x2", "0%")
+        .attr("y2", "100%")
+        .attr("spreadMethod", "pad");
+
+        gradient.append("svg:stop")
+            .attr("offset", "0%")
+            .attr("stop-color", "#DA70D6")
+            .attr("stop-opacity", 1);
+
+        gradient.append("svg:stop")
+            .attr("offset", "50%")
+            .attr("stop-color", "#9932CC")
+            .attr("stop-opacity", 1);
+
+        gradient.append("svg:stop")
+            .attr("offset", "100%")
+            .attr("stop-color", "#2E0854")
+            .attr("stop-opacity", 1);
+
         this.x = d3.scale.linear()
         .domain([0, TFFT.BUFFER_SIZE / 2.0])
-        .range([this.margin, this.width - this.margin]);
+        .rangeRound([this.margin / 2.0, this.width - (this.margin / 2.0)]);
 
         var that = this;
 
@@ -185,22 +225,24 @@ TFFT.SignalTransformGraph = Backbone.View.extend({
         .text(function (d) { n = Math.round(TFFT.getBandFrequency(d)); return n - n % 5; })
         .attr("x", function(d) { return that.x(d); })
         .attr("y", this.height - this.margin / 2)
+        .attr("style", "fill:green")
         .attr("text-anchor", "middle")
         .attr("transform", function(d) { return "rotate(45," + that.x(d) + "," + that.height + ")"; });
 
-        this.y = d3.scale.linear()
+        var y = d3.scale.linear()
         .domain([0, 1.0])
         .range([this.margin, this.height - this.margin]);
 
         var zeroes = _.map(_.range(0, TFFT.BUFFER_SIZE / 2.0), Math.zeroFunction);
+        
         this.chart.selectAll("rect")
         .data(zeroes)
         .enter()
         .append("rect")
-        .attr("x", function(d, i) { return that.x(i) - 0.5; })
-        .attr("y", function(d) { return that.height - that.y(d) - 0.5; })
+        .attr("x", function(d, i) { return that.x(i); })
+        .attr("y", function(d) { return that.height - y(d) - 0.5; })
         .attr("width", function(d) { return 2.0; })
-        .attr("height", function(d) { return that.y(d) - that.margin; });
+        .attr("height", function(d) { return y(d) - that.margin; });
 
         this.collection.on("all", this.render, this);
     },
@@ -211,7 +253,8 @@ TFFT.SignalTransformGraph = Backbone.View.extend({
         var spectrumMax = d3.max(spectrum);
         spectrum = _.map(spectrum, function(s) { return s - spectrumMax; }); // normalize to 0 db
         var spectrumMin = d3.min(spectrum);
-        this.y = d3.scale.linear()
+        
+        var y = d3.scale.linear()
         .domain([spectrumMin, 0.0])
         .range([this.margin, this.height - this.margin]);
 
@@ -219,8 +262,9 @@ TFFT.SignalTransformGraph = Backbone.View.extend({
         this.chart.selectAll("rect")
         .data(spectrum)
         .transition()
-        .attr("y", function(d) { return that.height - that.y(d) - 0.5; })
-        .attr("height", function(d) { return that.y(d) - that.margin; });
+        .attr("style", function(d) { return "fill:url(#signalGradient);"; })
+        .attr("y", function(d) { return that.height - y(d) - 0.5; })
+        .attr("height", function(d) { return y(d) - that.margin; });
 
         return this;
     }
@@ -235,7 +279,9 @@ TFFT.WAVEFORMS = {
 },
 
 TFFT.SignalView = Backbone.View.extend({
-    className: 'signal-control',
+    tagName: 'div',
+
+    className: 'signal-control ui-widget',
 
     events: {
         'change input': 'updateSignal'
@@ -253,7 +299,7 @@ TFFT.SignalView = Backbone.View.extend({
 
     render: function() {
         $(this.el).html(this.template({
-            id: this.model.cid,
+            id: this.model.id,
             waveforms: TFFT.WAVEFORMS,
             signal: this.model }));
         this.$('.frequency-slider').slider({
@@ -289,20 +335,30 @@ TFFT.SignalView = Backbone.View.extend({
 
 TFFT.ApplicationView = Backbone.View.extend({
 
+    events: {
+        'click .add': 'createSignal'
+    },
+
     initialize: function(options) {
+        this.signalCount = 0;
         this.transformView = new TFFT.SignalTransformGraph({
-            width: this.options.width || 1000,
+            width: this.options.width || 900,
             height: this.options.height || 400,
             collection: TFFT.Signals
         });
-        this.$el.append(this.transformView.el);
-        var initialSignal = new TFFT.SignalModel({
-            frequency: 7040
+        this.$('.signal-transform').append(this.transformView.el);
+        TFFT.Signals.on('add', this.addSignal, this);
+    },
+
+    createSignal: function(event) {
+        this.signalCount++;
+        TFFT.Signals.create({ id: this.signalCount });
+    },
+
+    addSignal: function(signal) {
+        var signalView = new TFFT.SignalView({
+            model: signal
         });
-        TFFT.Signals.add(initialSignal);
-        var initialSignalView = new TFFT.SignalView({
-            model: initialSignal
-        });
-        this.$el.append(initialSignalView.render().el);
+        this.$('.signal-panel >.new').before(signalView.render().el);
     }
 });

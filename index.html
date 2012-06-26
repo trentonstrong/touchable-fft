@@ -1,16 +1,29 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html>
 <head>
+    <link rel="stylesheet" type="text/css" href="bootstrap/css/bootstrap.min.css" />
     <link rel="stylesheet" type="text/css" href="css/aristo.css" />
     <link rel="stylesheet" type="text/css" href="css/styles.css" />
 </head>
 <body>
     <div id="app" class="container">
-
+        <div class="signal-transform ui-widget">
+            <div class="ui-widget-header">Signal Transform</div>
+        </div>
+        <div class="signal-panel">
+            <div class="new signal-control">
+                <div class="hero-unit">
+                    <p>Add another signal!
+                    <button class="btn btn-primary add">Add</button></p>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 </html>
 <script id="signal_view_template" type="text/x-underscore-template">
+    <div class="ui-widget-header">Signal #<%= id %></div>
+    <div class="ui-widget-content">
     <label for="frequency_<%= id %>">Frequency</label>
     <input type="text" name="frequency" id="frequency_<%= id %>" value="<%= signal.get('frequency') %>" />
     <div class="frequency-slider"></div>
@@ -19,17 +32,22 @@
     <input type="text" name="amplitude" id="amplitude_<%= id %>" value="<%= signal.get('amplitude') %>" />
     <div class="amplitude-slider"></div>
     <br />
+    <div class="controls">
     <label>Waveform:</label>
     <% _.each(waveforms, function(waveformId, waveformName) { %>
-        <label for="waveform_<%= id %>_<%= waveformId %>"><%= waveformName %></label>
+        <label class="radio" for="waveform_<%= id %>_<%= waveformId %>"><%= waveformName %>
         <input type="radio"
             id="waveform_<%= id %>_<%= waveformId %>"
             name="waveform_<%= id %>"
             value="<%= waveformId %>"
             <%= signal.get('waveForm') === waveformId ? 'checked="checked"' : '' %> />
+        </label>
     <% }); %>
+    </div>
+    </div>
 </script>
-<script src="js/jquery-1.7.1.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script>window.jQuery || document.write('<script src="js/jquery-1.7.1.min.js"><\/script>')</script>
 <script src="js/jquery-ui-1.8.18.custom.min.js"></script>
 <script src="js/underscore.js"></script>
 <script src="js/backbone.js"></script>
@@ -40,4 +58,5 @@
     var appView = new TFFT.ApplicationView({
         el: $('#app')
     });
+    appView.createSignal();
 </script>
