@@ -115,12 +115,14 @@
  */
  TFFT.BANDWIDTH = 2.0 / TFFT.BUFFER_SIZE * TFFT.SAMPLE_RATE / 2.0;
 
+
 /*
  * Returns the band frequency an index represents in the frequency domain buffer.
  */
  TFFT.getBandFrequency = function(index) {
     return TFFT.BANDWIDTH * index + TFFT.BANDWIDTH / 2.0;
 };
+
 
 /*
 * The */
@@ -145,6 +147,8 @@ TFFT.SignalModel = Backbone.Model.extend({
     }
 });
 
+TFFT.Window = new WindowFunction(DSP.HANN);
+
 TFFT.SignalCollection = Backbone.Collection.extend({
     model: TFFT.SignalModel,
 
@@ -159,22 +163,19 @@ TFFT.SignalCollection = Backbone.Collection.extend({
     },
 
     getFFT: function() {
+
         var fft = new FFT(TFFT.BUFFER_SIZE, TFFT.SAMPLE_RATE);
         fft.forward(this.getTotalSignal());
         return fft;
     }
 });
 
+
 TFFT.Signals = new TFFT.SignalCollection;
 
-// color temperature (blackbody: 1K -> 20K)
-TFFT.ColorScale = ['#ff3800', '#ff8912', '#ffb46b', '#ffd1a3', '#ffe4ce',
-    '#fff3ef', '#f5f3ff', '#e3e9ff', '#d6e1ff', '#ccdbff', '#c4d7ff', '#bfd3ff',
-    '#bad0ff', '#b6ceff', '#b3ccff', '#b0caff', '#aec8ff', '#acc7ff', '#aac6ff',
-    '#a8c5ff'];
 
 TFFT.SignalTransformGraph = Backbone.View.extend({
-    className: 'signal-transform-graph ui-widget-content',
+    className: 'graph',
 
     initialize: function(options) {
         this.width = options.width || 640;
@@ -211,23 +212,23 @@ TFFT.SignalTransformGraph = Backbone.View.extend({
             .attr("stop-color", "#2E0854")
             .attr("stop-opacity", 1);
 
-        this.x = d3.scale.linear()
+        var x = d3.scale.linear()
         .domain([0, TFFT.BUFFER_SIZE / 2.0])
         .rangeRound([this.margin / 2.0, this.width - (this.margin / 2.0)]);
 
         var that = this;
 
         this.chart.selectAll(".xLabel")
-        .data(this.x.ticks(16))
+        .data(x.ticks(16))
         .enter()
         .append("svg:text")
         .attr("class", "xLabel")
         .text(function (d) { n = Math.round(TFFT.getBandFrequency(d)); return n - n % 5; })
-        .attr("x", function(d) { return that.x(d); })
+        .attr("x", function(d) { return x(d); })
         .attr("y", this.height - this.margin / 2)
         .attr("style", "fill:green")
         .attr("text-anchor", "middle")
-        .attr("transform", function(d) { return "rotate(45," + that.x(d) + "," + that.height + ")"; });
+        .attr("transform", function(d) { return "rotate(45," + x(d) + "," + that.height + ")"; });
 
         var y = d3.scale.linear()
         .domain([0, 1.0])
@@ -239,7 +240,7 @@ TFFT.SignalTransformGraph = Backbone.View.extend({
         .data(zeroes)
         .enter()
         .append("rect")
-        .attr("x", function(d, i) { return that.x(i); })
+        .attr("x", function(d, i) { return x(i); })
         .attr("y", function(d) { return that.height - y(d) - 0.5; })
         .attr("width", function(d) { return 2.0; })
         .attr("height", function(d) { return y(d) - that.margin; });
@@ -255,8 +256,16 @@ TFFT.SignalTransformGraph = Backbone.View.extend({
         var spectrumMin = d3.min(spectrum);
         
         var y = d3.scale.linear()
-        .domain([spectrumMin, 0.0])
-        .range([this.margin, this.height - this.margin]);
+            .domain([spectrumMin, 0.0])
+            .range([this.margin, this.height - this.margin]);
+
+        var yAxis = d3.svg.axis()
+            .scale(y)
+            .orient("left")
+
+        this.chart.append("g")
+            .attr("class", "y axis")
+            .call(yAxis);
 
         var that = this;
         this.chart.selectAll("rect")
@@ -270,13 +279,195 @@ TFFT.SignalTransformGraph = Backbone.View.extend({
     }
 });
 
+TFFT.SignalTransformGraphView = Backbone.View.extend({
+    className: 'graph',
+
+    initialize: function(options) {
+        this.width = options.width || 640;
+        this.height = options.height || 480;
+        this.margin = {top: 10, right: 10, bottom: 20, left: 40} || options.margin;
+        this.width = this.width - this.margin.left - this.margin.right,
+        this.height = this.height - this.margin.top - this.margin.bottom;
+
+        this.chart = d3.select(this.el)
+            .append("svg")
+            .attr("class", "chart")
+            .attr("width", this.width + this.margin.left + this.margin.right)
+            .attr("height", this.height + this.margin.top + this.margin.bottom)
+            .append("g")
+            .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
+
+        // define gradient for signal bars
+        var gradient = this.chart.append("svg:defs")
+            .append("svg:linearGradient")
+            .attr("id", "signalGradient")
+            .attr("x1", "0%")
+            .attr("y1", "0%")
+            .attr("x2", "0%")
+            .attr("y2", "100%")
+            .attr("spreadMethod", "pad");
+        gradient.append("svg:stop")
+            .attr("offset", "0%")
+            .attr("stop-color", "#DA70D6")
+            .attr("stop-opacity", 1);
+        gradient.append("svg:stop")
+            .attr("offset", "50%")
+            .attr("stop-color", "#9932CC")
+            .attr("stop-opacity", 1);
+        gradient.append("svg:stop")
+            .attr("offset", "100%")
+            .attr("stop-color", "#2E0854")
+            .attr("stop-opacity", 1);
+
+        // frequency axis
+        var frequency = d3.scale.linear()
+            .domain([0, TFFT.BUFFER_SIZE / 2.0])
+            .range([0, TFFT.getBandFrequency(TFFT.BUFFER_SIZE / 2.0)])
+
+        var x = d3.scale.linear()
+            .domain([0, frequency(TFFT.BUFFER_SIZE / 2.0)])
+            .rangeRound([0, this.width]);
+
+        var xAxis = d3.svg.axis()
+            .scale(x)
+            .orient("bottom")
+
+        this.chart.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + this.height + ")")
+            .call(xAxis);
+
+        // initialize rects 0 height to enable transform animation on first render
+        var that = this;
+        var zeroes = _.map(_.range(0, TFFT.BUFFER_SIZE / 2.0), Math.zeroFunction);        
+        this.chart.selectAll("rect")
+            .data(zeroes)
+            .enter()
+            .append("rect")
+            .attr("x", function(d, i) { return x(frequency(i)); })
+            .attr("y", function(d) { return that.height; })
+            .attr("width", function(d) { return 1.0; })
+            .attr("height", function(d) { return d; });
+
+        this.collection.on("all", this.render, this);
+    },
+
+    render: function() {
+        this.chart.select("g.y").remove();
+
+        var fft = this.collection.getFFT();
+        var spectrum = _.map(fft.spectrum, Math.toDecibels);
+        var spectrumMax = d3.max(spectrum);
+        spectrum = _.map(spectrum, function(s) { return s - spectrumMax; }); // normalize to 0 db
+        var spectrumMin = d3.min(spectrum);
+        
+        var y = d3.scale.linear()
+            .domain([spectrumMin, 0.0])
+            .range([this.height, 0]);
+
+        var yAxis = d3.svg.axis()
+            .scale(y)
+            .orient("left")
+
+        this.chart.append("g")
+            .attr("class", "y axis")
+            .call(yAxis);
+
+        var that = this;
+        this.chart.selectAll("rect")
+            .data(spectrum)
+            .transition()
+            .attr("style", function(d) { return "fill:url(#signalGradient);"; })
+            .attr("y", function(d) { return y(d) - 0.5; })
+            .attr("height", function(d) { return that.height - y(d); });
+
+       return this; 
+    }
+
+
+});
+
+TFFT.SignalGraphView = Backbone.View.extend({
+
+    className: 'graph',
+
+    initialize: function(options) {
+        this.width = options.width || 640;
+        this.height = options.height || 480;
+        this.margin = {top: 10, right: 10, bottom: 20, left: 50} || options.margin;
+        this.width = this.width - this.margin.left - this.margin.right,
+        this.height = this.height - this.margin.top - this.margin.bottom;
+
+        this.chart = d3.select(this.el)
+        .append("svg")
+        .attr("class", "chart")
+        .attr("width", this.width + this.margin.left + this.margin.right)
+        .attr("height", this.height + this.margin.top + this.margin.bottom)
+        .append("g")
+            .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
+
+        this.time = d3.scale.linear()
+            .domain([0, TFFT.BUFFER_SIZE])
+            .range([0, TFFT.BUFFER_SIZE / TFFT.SAMPLE_RATE ]);
+
+        this.x = d3.scale.linear()
+            .domain([0, this.time(TFFT.BUFFER_SIZE)])
+            .rangeRound([0, this.width]);
+
+        var xAxis = d3.svg.axis()
+            .scale(this.x)
+            .orient("bottom");
+
+        this.chart.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + this.height / 2.0 + ")")
+            .call(xAxis);
+
+        this.collection.on("all", this.render, this);
+    },
+
+    render: function() {
+        // remove y axis and previous plot, if any
+        this.chart.select("g.y").remove();
+        this.chart.select("path.line").remove();
+
+        var signal = this.collection.getTotalSignal();
+        this.chart.datum(signal);
+
+        var y = d3.scale.linear()
+            .domain(d3.extent(signal))
+            .range([this.height, 0]);
+
+        var yAxis = d3.svg.axis()
+            .scale(y)
+            .orient("left")
+            .tickFormat(d3.format('.02f'));
+
+        var that = this;
+        var line = d3.svg.line()
+            .x(function(d, i) { return that.x(that.time(i)); })
+            .y(function(d) { return y(d); });
+
+        this.chart.append("g")
+            .attr("class", "y axis")
+            .call(yAxis);
+
+        this.chart.append("path")
+            .attr("class", "line")
+            .attr("d", line);
+
+        return this;
+    }
+
+});
+
 TFFT.WAVEFORMS = {
     'Sine': DSP.SINE,
     'Triangle': DSP.TRIANGLE,
     'Saw': DSP.SAW,
     'Square': DSP.SQUARE,
     'Noise': DSP.NOISE
-},
+};
 
 TFFT.SignalView = Backbone.View.extend({
     tagName: 'div',
@@ -340,13 +531,22 @@ TFFT.ApplicationView = Backbone.View.extend({
     },
 
     initialize: function(options) {
+        this.$('.tabs').tabs();
         this.signalCount = 0;
-        this.transformView = new TFFT.SignalTransformGraph({
-            width: this.options.width || 900,
-            height: this.options.height || 400,
+        this.transformView = new TFFT.SignalTransformGraphView({
+            width: options.width || 900,
+            height: options.height || 400,
             collection: TFFT.Signals
         });
-        this.$('.signal-transform').append(this.transformView.el);
+
+        this.inputView = new TFFT.SignalGraphView({
+            width: options.width || 900,
+            height: options.height || 400,
+            collection: TFFT.Signals
+        });
+
+        this.$('#signalTransformTab').append(this.transformView.el);
+        this.$('#signalInputTab').append(this.inputView.el);
         TFFT.Signals.on('add', this.addSignal, this);
     },
 

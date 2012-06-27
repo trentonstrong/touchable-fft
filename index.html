@@ -1,14 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <link rel="stylesheet" type="text/css" href="bootstrap/css/bootstrap.min.css" />
     <link rel="stylesheet" type="text/css" href="css/aristo.css" />
     <link rel="stylesheet" type="text/css" href="css/styles.css" />
 </head>
 <body>
     <div id="app" class="container">
-        <div class="signal-transform ui-widget">
-            <div class="ui-widget-header">Signal Transform</div>
+        <div class="tabs">
+            <ul>
+                <li><a href="#signalTransformTab">Input Signal Frequency Spectrum</a></li>
+                <li><a href="#signalInputTab">Input Signal</a></li>
+            </ul>
+            <div id="signalTransformTab" class="signal-transform"></div>
+            <div id="signalInputTab" class="signal-input"></div>
         </div>
         <div class="signal-panel">
             <div class="new signal-control">
@@ -52,6 +58,7 @@
 <script src="js/underscore.js"></script>
 <script src="js/backbone.js"></script>
 <script src="js/d3.js"></script>
+<script src="js/nvd3.js"></script>
 <script src="js/dsp.js"></script>
 <script src="js/script.js"></script>
 <script>
