@@ -1,7 +1,7 @@
 TODO
 ====
 
-* Add panel for showing constructed input signal next to signal transform
+* Remove signals
 
 * Import clip from soundcloud for sampling and spectrum visualization
 

@@ -1,0 +1,51 @@
+body {
+  background: #eee;
+}
+
+.ui-widget-content {
+  border: 2px solid #B6B6B6;
+}
+
+.graph {
+    background: #000;  
+}
+
+.graph .line {
+  fill: none;
+  stroke: #DA70D6;
+  shape-rendering: geometricPrecision;
+}
+
+.axis path, .axis line {
+  fill: none;
+  stroke: green;
+  shape-rendering: crispEdges;
+}
+
+.axis text {
+  stroke: red;
+  font-size: 8px;
+  stroke-width: 0.5;
+  fill: none;
+}
+
+.signal-transform-graph {
+
+}
+
+.signal-input-graph {
+}
+
+.signal-control {
+  width: 25%;
+  float: left;
+}
+
+.signal-panel {
+  padding: 0 8px;
+}
+
+.signal-control >.ui-widget-content{
+  padding: 2px 4px;
+}
+
